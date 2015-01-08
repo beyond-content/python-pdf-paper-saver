@@ -1,1 +1,1 @@
-# Library for saving paper for PDF pages containing differently sized pages
+# Library for saving paper for PDF documents containing differently sized pages
