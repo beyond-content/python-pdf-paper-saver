@@ -1,0 +1,5 @@
+pdfpapersaver
+=============================
+
+.. automodule:: pdfpapersaver
+:members:
