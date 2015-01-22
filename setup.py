@@ -11,7 +11,6 @@ from os.path import splitext
 from setuptools import find_packages
 from setuptools import setup
 from setuptools.command.test import test as TestCommand
-
 from setuptools_behave import behave_test
 
 
@@ -64,6 +63,7 @@ setup(
     ],
     install_requires=[
         # eg: "aspectlib==1.1.1", "six>=1.7",
+        "Rect", "PyPDF2", "reportlab", "sphinx", "sphinx_py3doc_enhanced_theme", "PyHamcrest"
     ],
     extras_require={
         # eg: "rst": ["docutils>=0.11"],
@@ -77,5 +77,4 @@ setup(
         "behave_test": behave_test,
         "test": PyTest,
     },
-    tests_require=['pytest'],
 )
