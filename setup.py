@@ -63,7 +63,7 @@ setup(
     ],
     install_requires=[
         # eg: "aspectlib==1.1.1", "six>=1.7",
-        "Rect", "PyPDF2", "reportlab", "sphinx", "sphinx_py3doc_enhanced_theme", "PyHamcrest"
+        "Rect", "PyPDF2", "reportlab", "sphinx", "sphinx_py3doc_enhanced_theme", "PyHamcrest", "pytest", "jinja2"
     ],
     extras_require={
         # eg: "rst": ["docutils>=0.11"],
