@@ -11,7 +11,6 @@ from os.path import splitext
 from setuptools import find_packages
 from setuptools import setup
 from setuptools.command.test import test as TestCommand
-from setuptools_behave import behave_test
 
 
 class PyTest(TestCommand):
@@ -74,7 +73,6 @@ setup(
         ]
     },
     cmdclass={
-        "behave_test": behave_test,
         "test": PyTest,
     },
 )
