@@ -3,9 +3,9 @@ from unittest import TestCase
 from cStringIO import StringIO
 
 from hamcrest import *
+from reportlab.lib import pagesizes
 from reportlab.lib.colors import black, getAllNamedColors
 from reportlab.lib.units import mm
-
 from reportlab.pdfgen.canvas import Canvas
 from PyPDF2 import PdfFileWriter, PdfFileReader
 from rect.packer import pack
@@ -14,14 +14,21 @@ from rect.packer import pack
 class ColoredPDFPage(object):
     def __init__(self, width, height, background_color=None, text=None, size_unit=mm):
         super(ColoredPDFPage, self).__init__()
-        self.width = width * size_unit
-        self.height = height * size_unit
+        self.size_unit = size_unit
+        self.width = width * self.size_unit
+        self.height = height * self.size_unit
         self.background_color = background_color
         self.text = "%s x %s" % (width, height) if text is None else text
+        self._page = None
 
     @property
     def pagesize(self):
         return self.width, self.height
+
+    @property
+    def page(self):
+        self._page = self._page or self.to_page()
+        return self._page
 
     @classmethod
     def create_randomly_sized_and_colored_page(cls, min_width, max_width, min_height, max_height, extra_text):
@@ -30,7 +37,7 @@ class ColoredPDFPage(object):
         height = randint(min_height, max_height)
         color_name, color = colors_and_names[randint(0, len(colors_and_names) - 1)]
         text = "%s [Size: %d x %d][Color: %s] " % (extra_text, width, height, color_name)
-        return cls(width, height, background_color=color, text=text).to_page()
+        return cls(width, height, background_color=color, text=text)
 
     def to_page(self):
         stream = StringIO()
@@ -45,23 +52,53 @@ class ColoredPDFPage(object):
         stream.seek(0)
         return PdfFileReader(stream).pages[0]
 
+    def extract_stripped_text(self):
+        return self.page.extractText().strip()
+
 
 class BaseTestCase(TestCase):
     def setUp(self):
         super(BaseTestCase, self).setUp()
         self.source_pdf = StringIO()
+        self.colored_pages = []
         self.create_randomly_sized_pdf_pages()
 
     def create_randomly_sized_pdf_pages(self):
         writer = PdfFileWriter()
         for id in range(0, 100):
-            page = ColoredPDFPage.create_randomly_sized_and_colored_page(40, 210, 40, 297, extra_text="#%d" % id)
-            writer.addPage(page)
+            max_width, max_height = [int(round(x / mm)) for x in pagesizes.A4]
+            colored_page = ColoredPDFPage.create_randomly_sized_and_colored_page(40, max_width,
+                                                                                 40, max_height,
+                                                                                 extra_text="#%d" % id,
+            )
+            writer.addPage(colored_page.page)
+            self.colored_pages.append(colored_page)
         writer.write(self.source_pdf)
 
     def test_expected_page_count(self):
         reader = PdfFileReader(self.source_pdf)
         assert_that(reader.numPages, equal_to(100), "Expected page count")
+
+    def test_colored_page_creation_results_in_the_correct_page_sizes_and_size(self):
+        min_width, min_height = 50, 50
+        max_width, max_height = 100, 200
+        colored_page = ColoredPDFPage.create_randomly_sized_and_colored_page(min_width, max_width,
+                                                                             min_height, max_height,
+                                                                             "sometext!!")
+        pdf_page_width = colored_page.page.mediaBox.getWidth()
+        pdf_page_height = colored_page.page.mediaBox.getHeight()
+
+        assert_that(colored_page.width, close_to(float(pdf_page_width), delta=0.0001))
+        assert_that(colored_page.height, close_to(float(pdf_page_height), delta=0.0001))
+
+        assert_that(pdf_page_height, less_than_or_equal_to(max_height * mm))
+        assert_that(pdf_page_width, less_than_or_equal_to(max_width * mm))
+
+        assert_that(pdf_page_height, greater_than_or_equal_to(min_height * mm))
+        assert_that(pdf_page_width, greater_than_or_equal_to(min_width * mm))
+
+        found_text = colored_page.extract_stripped_text()
+        assert_that(found_text, contains_string("sometext!!"))
 
     def test_pack_pages(self):
         canvas = (306, 303)
