@@ -1,3 +1,4 @@
+from itertools import chain
 from random import randint
 from unittest import TestCase
 from cStringIO import StringIO
@@ -5,11 +6,14 @@ from cStringIO import StringIO
 from hamcrest import *
 from rect import Rect
 from reportlab.lib import pagesizes
+
 from reportlab.lib.colors import black, getAllNamedColors
 from reportlab.lib.units import mm
 from reportlab.pdfgen.canvas import Canvas
 from PyPDF2 import PdfFileWriter, PdfFileReader
 from rect.packer import pack
+
+from pdfpapersaver import PDFPagePacker
 
 
 class ColoredPDFPage(object):
@@ -45,7 +49,8 @@ class ColoredPDFPage(object):
         width = randint(min_width, max_width)
         height = randint(min_height, max_height)
         color_name, color = colors_and_names[randint(0, len(colors_and_names) - 1)]
-        text = "%s [Size: %d x %d][Color: %s] " % (extra_text, width, height, color_name)
+        # text = "%s [Size: %d x %d][Color: %s] " % (extra_text, width, height, color_name)
+        text = extra_text
         return cls(width, height, background_color=color, text=text)
 
     def to_page(self):
@@ -118,6 +123,29 @@ class BaseTestCase(TestCase):
         pack(canvas, rects, 3)
 
     def test_pack_pdf_pages(self):
+        packer = PDFPagePacker(self.source_pdf)
+        assert_that(packer.page_count, equal_to(100))
+        assert_that(len(packer.rects), equal_to(100))
+        pages = packer.pack()
+
+        placed_rects = list(chain.from_iterable(pages))
+        rect_count = len(placed_rects)
+        assert_that(rect_count, equal_to(100))
+
+        for r in placed_rects:
+            assert_that(r.width, close_to(float(r.page.mediaBox.getWidth()), delta=0.001))
+            assert_that(r.height, close_to(float(r.page.mediaBox.getHeight()), delta=0.001))
+
+        packed_file = StringIO()
+        packer.get_packed_file(packed_file)
+        r = PdfFileReader(packed_file)
+        assert_that(has_length(pages), r.numPages)
+
+        f = file("/Users/jp/Desktop/mypdf_processed.pdf", "wb")
+        packer.get_packed_file(f)
+        f.close()
+        return
+
         rects = [page.to_rect() for page in self.colored_pages]
         canvas = pagesizes.A4
         pack(canvas, rects, 1)
