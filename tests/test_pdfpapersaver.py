@@ -3,6 +3,7 @@ from unittest import TestCase
 from cStringIO import StringIO
 
 from hamcrest import *
+from rect import Rect
 from reportlab.lib import pagesizes
 from reportlab.lib.colors import black, getAllNamedColors
 from reportlab.lib.units import mm
@@ -30,6 +31,14 @@ class ColoredPDFPage(object):
         self._page = self._page or self.to_page()
         return self._page
 
+    @property
+    def pdf_page_width(self):
+        return self.page.mediaBox.getWidth()
+
+    @property
+    def pdf_page_height(self):
+        return self.page.mediaBox.getHeight()
+
     @classmethod
     def create_randomly_sized_and_colored_page(cls, min_width, max_width, min_height, max_height, extra_text):
         colors_and_names = getAllNamedColors().items()
@@ -55,6 +64,9 @@ class ColoredPDFPage(object):
     def extract_stripped_text(self):
         return self.page.extractText().strip()
 
+    def to_rect(self):
+        return Rect([self.pdf_page_width, self.pdf_page_height])
+
 
 class BaseTestCase(TestCase):
     def setUp(self):
@@ -66,7 +78,7 @@ class BaseTestCase(TestCase):
     def create_randomly_sized_pdf_pages(self):
         writer = PdfFileWriter()
         for id in range(0, 100):
-            max_width, max_height = [int(round(x / mm)) for x in pagesizes.A4]
+            max_width, max_height = [int(round(x / mm / 2)) for x in pagesizes.A4]
             colored_page = ColoredPDFPage.create_randomly_sized_and_colored_page(40, max_width,
                                                                                  40, max_height,
                                                                                  extra_text="#%d" % id,
@@ -85,11 +97,11 @@ class BaseTestCase(TestCase):
         colored_page = ColoredPDFPage.create_randomly_sized_and_colored_page(min_width, max_width,
                                                                              min_height, max_height,
                                                                              "sometext!!")
-        pdf_page_width = colored_page.page.mediaBox.getWidth()
-        pdf_page_height = colored_page.page.mediaBox.getHeight()
+        pdf_page_width = colored_page.pdf_page_width
+        pdf_page_height = colored_page.pdf_page_height
 
-        assert_that(colored_page.width, close_to(float(pdf_page_width), delta=0.0001))
-        assert_that(colored_page.height, close_to(float(pdf_page_height), delta=0.0001))
+        assert_that(colored_page.width, close_to(float(pdf_page_width), delta=0.001))
+        assert_that(colored_page.height, close_to(float(pdf_page_height), delta=0.001))
 
         assert_that(pdf_page_height, less_than_or_equal_to(max_height * mm))
         assert_that(pdf_page_width, less_than_or_equal_to(max_width * mm))
@@ -102,7 +114,10 @@ class BaseTestCase(TestCase):
 
     def test_pack_pages(self):
         canvas = (306, 303)
-        rects = [(100, 200), (200, 300)]
+        rects = [Rect([100, 200]), Rect([200, 300])]
         pack(canvas, rects, 3)
 
-
+    def test_pack_pdf_pages(self):
+        rects = [page.to_rect() for page in self.colored_pages]
+        canvas = pagesizes.A4
+        pack(canvas, rects, 1)
