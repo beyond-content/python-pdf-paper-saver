@@ -1,1 +1,1 @@
-# Library for saving paper for PDF documents containing differently sized pages
+# Library for packing pages in PDF documents containing differently sized pages
